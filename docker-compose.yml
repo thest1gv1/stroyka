@@ -1,0 +1,68 @@
+# Локальная инфраструктура проекта.
+# Поднять:  docker compose up -d
+# Погасить: docker compose down       (тома остаются, данные целы)
+#           docker compose down -v    (тома удаляются, данные стёрты)
+
+services:
+  # ── База данных ───────────────────────────────────────────────
+  postgres:
+    # имя:тег. Тег фиксируем: с latest база однажды обновится сама
+    # и не поднимется — формат данных на диске несовместим
+    image: postgres:17
+    # переменные, которые читает сам образ при ПЕРВОМ запуске:
+    # создаёт по ним пользователя, пароль и базу.
+    # ${...} подставляется из .env — паролей в git быть не должно
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    # "порт_на_windows:порт_в_контейнере".
+    # нужен, потому что Nest пока запускается вне Docker
+    # и ходит на localhost:5432
+    ports:
+      - "5432:5432"
+    # "имя_тома:папка_в_контейнере".
+    # путь /var/lib/postgresql/data задан авторами образа
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    # поднимать после падения и после перезагрузки Windows,
+    # но не трогать, если остановлен вручную
+    restart: unless-stopped
+
+  # ── Очередь задач для BullMQ (обработка фото) ─────────────────
+  redis:
+    # alpine — сборка на урезанном Linux, образ ~45 МБ вместо ~150
+    image: redis:8-alpine
+    # переопределяет команду запуска образа.
+    # --appendonly yes включает журнал на диск: без него Redis
+    # живёт только в памяти и том был бы бесполезен
+    command: redis-server --appendonly yes
+    ports:
+      - "6379:6379"
+    volumes:
+      - redisdata:/data
+    restart: unless-stopped
+
+  # ── S3-совместимое хранилище фотографий ───────────────────────
+  minio:
+    image: minio/minio
+    # server /data       — какую папку раздавать как объекты
+    # --console-address  — веб-консоль, без флага поднимется только API
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    ports:
+      - "9000:9000" # S3 API — сюда пойдёт Nest
+      - "9001:9001" # веб-консоль — сюда ходишь ты браузером
+    volumes:
+      - miniodata:/data
+    restart: unless-stopped
+
+# Объявление именованных томов. Тома живут отдельно от контейнеров:
+# контейнер можно удалить и создать заново, данные останутся.
+# На диске получат префикс проекта: stroyka_pgdata и т.д.
+volumes:
+  pgdata:
+  redisdata:
+  miniodata:
