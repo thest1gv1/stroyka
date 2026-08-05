@@ -3,6 +3,8 @@ import { DATABASE_CONNECTION } from '../database/database.module';
 import { sql } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/postgres-js';
 
+type HealthStatus = { status: 'ok' } | { status: 'error' };
+
 @Injectable()
 export class HealthService {
   constructor(
@@ -10,7 +12,7 @@ export class HealthService {
     private readonly db: ReturnType<typeof drizzle>,
   ) {}
 
-  async check() {
+  async check(): Promise<HealthStatus> {
     try {
       await this.db.execute(sql`select 1`);
       return { status: 'ok' };
