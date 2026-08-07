@@ -1,0 +1,1 @@
+export const STORAGE_CLIENT = 'STORAGE_CLIENT';

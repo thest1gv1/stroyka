@@ -5,6 +5,7 @@ import { AppService } from './app.service';
 import { ConfigModule } from '@nestjs/config';
 import { validate } from './config';
 import { HealthModule } from './health/health.module';
+import { StorageModule } from './storage/storage.module';
 
 const configModule = ConfigModule.forRoot({
   validate,
@@ -13,7 +14,7 @@ const configModule = ConfigModule.forRoot({
 });
 
 @Module({
-  imports: [configModule, DatabaseModule, HealthModule],
+  imports: [configModule, DatabaseModule, HealthModule, StorageModule],
   controllers: [AppController],
   providers: [AppService],
 })
